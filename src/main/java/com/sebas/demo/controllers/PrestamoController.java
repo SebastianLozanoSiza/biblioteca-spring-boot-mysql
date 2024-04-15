@@ -9,6 +9,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -113,6 +114,22 @@ public class PrestamoController {
         response.put("mensaje", "Prestamo actualizado correctamente");
         response.put("prestamo", prestamoUpdate);
 
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> delete(@PathVariable Long id) {
+
+        Map<String, Object> response = new HashMap<>();
+        try {
+            servicePrestamo.delete(id);
+        } catch (DataAccessException e) {
+            response.put("mensaje", "Error al realizar los inserts en la base de datos");
+            response.put("error", e.getMessage().concat(":").concat(e.getMostSpecificCause().getMessage()));
+            return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        response.put("mensaje", "Prestamo eliminado exitosamente");
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

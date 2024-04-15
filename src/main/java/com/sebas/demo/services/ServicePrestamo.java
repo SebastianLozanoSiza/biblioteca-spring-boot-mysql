@@ -18,4 +18,6 @@ public interface ServicePrestamo {
 
     void delete(Long id);
 
+    void aumentarCantidadLibros(Long libroId);
+
 }

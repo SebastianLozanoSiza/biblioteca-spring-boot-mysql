@@ -23,8 +23,8 @@ import lombok.AllArgsConstructor;
 
 @Service
 @AllArgsConstructor
-public class ServicePrestamoImpl implements ServicePrestamo{
-    
+public class ServicePrestamoImpl implements ServicePrestamo {
+
     @Autowired
     private RepositoryPrestamo repositoryPrestamo;
     private RepositoryUsuario repositoryUsuario;
@@ -32,14 +32,14 @@ public class ServicePrestamoImpl implements ServicePrestamo{
 
     @Autowired
     private PrestamoDTOConverter convert;
-    
+
     @Override
     @Transactional(readOnly = true)
     public List<PrestamoListDTO> findAll() {
         List<Prestamo> prestamos = (List<Prestamo>) repositoryPrestamo.findAll();
         return prestamos.stream()
-                    .map(prestamo -> convert.convertPrestamoListDTO(prestamo))
-                    .toList();
+                .map(prestamo -> convert.convertPrestamoListDTO(prestamo))
+                .toList();
     }
 
     @Override
@@ -47,8 +47,8 @@ public class ServicePrestamoImpl implements ServicePrestamo{
     public List<PrestamoListDTO> listarPrestamosPorEstado(EstadoPrestamo estado) {
         List<Prestamo> prestamos = repositoryPrestamo.findByEstadoPrestamo(estado);
         return prestamos.stream()
-                    .map(prestamo -> convert.convertPrestamoListDTO(prestamo))
-                    .toList();
+                .map(prestamo -> convert.convertPrestamoListDTO(prestamo))
+                .toList();
     }
 
     @Override
@@ -65,6 +65,16 @@ public class ServicePrestamoImpl implements ServicePrestamo{
         }
         result.setUsuario(usuario.get());
         result.setLibro(libro.get());
+        // Actualizar cantidad de libros disponibles
+        if (result.getEstadoPrestamo() == EstadoPrestamo.APROBADO ||
+                result.getEstadoPrestamo() == EstadoPrestamo.SOLICITADO) {
+            int cantidadDisponible = libro.get().getCantidadDisponible();
+            if (cantidadDisponible > 0) {
+                libro.get().setCantidadDisponible(cantidadDisponible - 1);
+            } else {
+                throw new IllegalStateException("No hay libros disponibles para prestar");
+            }
+        }
         return convert.converPrestamoDTO(repositoryPrestamo.save(result));
     }
 
@@ -81,6 +91,11 @@ public class ServicePrestamoImpl implements ServicePrestamo{
             prestamoCurrent.setLibro(libroOptional.get());
             prestamoCurrent.setEstadoPrestamo(prestamoDTO.getEstadoPrestamo());
             repositoryPrestamo.save(prestamoCurrent);
+            // Si el estado cambia a CANCELADO o DEVUELTO, aumentar la cantidad de libros disponibles
+            if (prestamoDTO.getEstadoPrestamo() == EstadoPrestamo.CANCELADO ||
+                    prestamoDTO.getEstadoPrestamo() == EstadoPrestamo.DEVUELTO) {
+                aumentarCantidadLibros(prestamoDTO.getLibroId());
+            }
             return convert.converPrestamoDTO(prestamoCurrent);
         }
         return null;
@@ -89,8 +104,21 @@ public class ServicePrestamoImpl implements ServicePrestamo{
     @Override
     @Transactional
     public void delete(Long id) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'delete'");
+        Optional<Prestamo> prestamoOptional = repositoryPrestamo.findById(id);
+        if (prestamoOptional.isPresent()) {
+            repositoryPrestamo.delete(prestamoOptional.get());
+        }
     }
-    
+
+    @Override
+    @Transactional
+    public void aumentarCantidadLibros(Long libroId) {
+        Optional<Libro> libroOptional = repositoryLibro.findById(libroId);
+        if (libroOptional.isPresent()) {
+            Libro libro = libroOptional.get();
+            libro.setCantidadDisponible(libro.getCantidadDisponible() + 1);
+            repositoryLibro.save(libro);
+        }
+    }
+
 }
